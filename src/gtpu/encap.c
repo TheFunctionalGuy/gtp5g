@@ -25,6 +25,10 @@
 #include "api_version.h"
 #include "pktinfo.h"
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 18, 0)
+#include <net/inet_dscp.h>
+#endif
+
 /* used to compatible with api with/without seid */
 #define MSG_KOV_LEN 4
 
@@ -82,7 +86,11 @@ struct sock *gtp5g_encap_enable(int fd, int type, struct gtp5g_dev *gtp){
     tuncfg.encap_rcv = gtp5g_encap_recv;
     tuncfg.encap_destroy = gtp5g_encap_disable_locked;
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(7, 2, 0)
+    setup_udp_tunnel_sock(sock_net(sock->sk), sock->sk, &tuncfg);
+#else
     setup_udp_tunnel_sock(sock_net(sock->sk), sock, &tuncfg);
+#endif
 
 out_sock:
     release_sock(sock->sk);
@@ -246,7 +254,7 @@ static int gtp1u_udp_encap_recv(struct gtp5g_dev *gtp, struct sk_buff *skb)
 {
     unsigned int hdrlen = sizeof(struct udphdr) + sizeof(struct gtpv1_hdr);
     struct gtpv1_hdr *gtpv1;
-    struct pdr *pdr;
+    struct pdr *pdr = NULL;
     unsigned int pull_len = hdrlen;
     u8 gtp_type;
     u32 teid;
@@ -646,7 +654,7 @@ int update_urr_counter_and_send_report(struct pdr *pdr, struct far *far, u64 vol
     struct usage_report *report = NULL;
     struct VolumeMeasurement *urr_counter = NULL;
     bool mnop;
-    struct sk_buff *skb;
+    struct sk_buff *skb = NULL;
     bool uplink = false;
 
     // Determine if the packet is uplink or downlink
@@ -995,7 +1003,12 @@ static struct rtable *find_ip4_route(struct flowi4 *fl4,
     fl4->flowi4_oif = sk->sk_bound_dev_if;
     fl4->daddr = daddr;
     fl4->saddr = saddr;
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 18, 0)
+    fl4->flowi4_dscp = inet_sk_dscp(inet_sk(sk));
+    fl4->flowi4_scope = ip_sock_rt_scope(sk);
+#else
     fl4->flowi4_tos = RT_TOS(inet_sk(sk)->tos);
+#endif
     fl4->flowi4_proto = sk->sk_protocol;
     return ip_route_output_key(sock_net(sk), fl4);
 }

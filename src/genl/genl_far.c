@@ -445,7 +445,7 @@ static int forwarding_parameter_fill(struct forwarding_parameter *param,
         fwd_policy->len = nla_len(attrs[GTP5G_FORWARDING_PARAMETER_FORWARDING_POLICY]);
         if (fwd_policy->len >= sizeof(fwd_policy->identifier))
             return -EINVAL;
-        strncpy(fwd_policy->identifier,
+        memcpy(fwd_policy->identifier,
                 nla_data(attrs[GTP5G_FORWARDING_PARAMETER_FORWARDING_POLICY]), fwd_policy->len);
 
         /* Exact value to handle forwarding policy */

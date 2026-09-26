@@ -439,7 +439,7 @@ static int pdr_fill(struct pdr *pdr, struct gtp5g_dev *gtp, struct genl_info *in
             /* Not in 3GPP spec, just used for buffering */
             str = nla_data(hdr);
             pdr->addr_unix.sun_family = AF_UNIX;
-            strncpy(pdr->addr_unix.sun_path, str, nla_len(hdr));
+            memcpy(pdr->addr_unix.sun_path, str, nla_len(hdr));
             break;
         case GTP5G_PDR_FAR_ID:
             if (!pdr->far_id) {
