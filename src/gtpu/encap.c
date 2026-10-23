@@ -86,11 +86,18 @@ struct sock *gtp5g_encap_enable(int fd, int type, struct gtp5g_dev *gtp){
     tuncfg.encap_rcv = gtp5g_encap_recv;
     tuncfg.encap_destroy = gtp5g_encap_disable_locked;
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(7, 2, 0)
-    setup_udp_tunnel_sock(sock_net(sock->sk), sock->sk, &tuncfg);
-#else
-    setup_udp_tunnel_sock(sock_net(sock->sk), sock, &tuncfg);
-#endif
+    /*
+     * Linux 7.1.5 changed the second argument of setup_udp_tunnel_sock() from
+     * struct socket * to struct sock *. Distributions backport this without
+     * bumping LINUX_VERSION_CODE (e.g. Ubuntu 7.0.0-38), so check the declared
+     * signature instead of the kernel version.
+     */
+    setup_udp_tunnel_sock(sock_net(sock->sk),
+        __builtin_choose_expr(
+            __builtin_types_compatible_p(typeof(&setup_udp_tunnel_sock),
+                void (*)(struct net *, struct sock *, struct udp_tunnel_sock_cfg *)),
+            sock->sk, sock),
+        &tuncfg);
 
 out_sock:
     release_sock(sock->sk);
